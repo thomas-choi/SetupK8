@@ -7,31 +7,31 @@ This project is seting up a Kubernetes Cluster using VirtualBox VM of Ubuntu 20.
 
 #### * Install SSH 
 ```
-$ sudo apt update
-$ sudo apt install openssh-server
+sudo apt update
+sudo apt install openssh-server
 ```
 ```
-$ sudo systemctl status ssh
+sudo systemctl status ssh
 ```
 Ubuntu ships with a firewall configuration tool called UFW. If the firewall is enabled on your system, make sure to open the SSH port:
 ```
-$ sudo ufw allow ssh
+sudo ufw allow ssh
 ```
 ```
-$ ip a
+ip a
 ```
 ```
-$ ssh linuxize@10.0.2.15
+ssh linuxize@10.0.2.15
 ```
 #### * Set up Docker
 ```    
-$ sudo apt update  
-$ sudo apt install docker.io -y  
+sudo apt update  
+sudo apt install docker.io -y  
 ```
 ```
-$ sudo systemctl enable docker  
-$ sudo systemctl status docker  
-$ sudo systemctl start docker  
+sudo systemctl enable docker  
+sudo systemctl status docker  
+sudo systemctl start docker  
 ```   
 ### 3. Installation of Kubernetes
 
@@ -73,24 +73,24 @@ Note: In releases older than Debian 12 and Ubuntu 22.04, /etc/apt/keyrings does 
 #### * Map VM network adaptor
 #### * Turn SWAP off, check SWAP by running below
 ```
-$ sudo swapoff -a
+sudo swapoff -a
 ```
 #### *  Check SWAP usage
 ```
-$ free -g
+free -g
 ```
 #### *  check product_uuid
 ```
-$ sudo cat /sys/class/dmi/id/product_uuid
+sudo cat /sys/class/dmi/id/product_uuid
 ```
 #### *  Check hostname
 ```
-$ sudo vi /etc/hostname
-$ sudo vi /etc/hosts
+sudo vi /etc/hostname
+sudo vi /etc/hosts
 ```
 #### *  Check required ports:
 ```
-  $ nc 127.0.0.16443
+nc 127.0.0.16443
 ```  
 #### *  Installing a container runtime
 
