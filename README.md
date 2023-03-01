@@ -65,8 +65,8 @@ Note: In releases older than Debian 12 and Ubuntu 22.04, /etc/apt/keyrings does 
 |kube02	 |192.168.11.151 |08002772E42B |d4f264b1-111a-7748-9b8c-de41a7c4fc9e |					
 |kube03	 |192.168.11.152 |080027EA5479 |cafcc210-fd7d-2244-a94c-707c928d2028 |					
 |kube04	 |192.168.11.153 |								
-|kube06	 |192.168.11.154 |								
-|kube07	 |192.168.11.155 |								
+|kube05	 |192.168.11.154 |								
+|kube06	 |192.168.11.155 |								
 
 #### Verity Ubuntu Setup for running Kebenetes
 
