@@ -4,4 +4,5 @@
 
 ### Table of Contents
 
+- [Setup a PC with GPU to run Ubuntu](/GPUPC/howto.md)
 - [Setup a basic Kubernetes Cluster on VirtualBox VM](/SetupK8onVM/INDEX.md)

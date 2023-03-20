@@ -85,7 +85,9 @@
 	|kube03	 |192.168.11.152 |080027EA5479 |Worker|4G	    |25G	|2		|					
 	|kube04	 |192.168.11.153 |0800270E6FC7|	Worker|4G	    |25G	|2		|						
 	|kube05	 |192.168.11.154 |08002778A66A|	Worker|4G	    |25G	|2		|						
-	|kube06	 |192.168.11.155 |080027792E53|	Worker|4G	    |25G	|2		|					
+	|kube06	 |192.168.11.155 |080027792E53|	Worker|4G	    |25G	|2		|	
+	|HA-LB1  |192.168.11.156|080027D267A5|Load Balancer1|4G|25G|2|
+	|HA-LB2 | 192.168.11.157|??|Load Balancer2|4G|25G|2|				
 	- I use my Wifi router to control the IP for each VM with the defined MAC address
 	- Also, I edit the file /etc/hosts with the IP address and hostname pair on the VM baseline
 
@@ -102,7 +104,7 @@
 
 
 
-- **Install container runtime**
+- **Install container runtime for all nodes**
   - The install and configure prerequisites
 
 	Forwarding IPv4 and letting iptables see bridged traffic as described 
@@ -133,13 +135,35 @@
 	lsmod | grep overlay
 	```
 	Verify that the net.bridge.bridge-nf-call-iptables, net.bridge.bridge-nf-call-ip6tables, net.ipv4.ip_forward system variables are set to 1 in your sysctl config by running below instruction:
-	```
+	``` Shell
 	sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward
 	```
 
-  - Docker is used as the container runtime for Kubernetes. Please follow the installation procedure of 
-	cri-dockerd [here](https://github.com/Mirantis/cri-dockerd). 
+  - Docker is used as the container runtime for Kubernetes. To allow Kubernetes to control the container, you need to download and install the cri-dockerd plugin. Please follow the installation procedure of [cri-dockerd.](https://github.com/Mirantis/cri-dockerd). The plugin is needed to install in very nodes of the Kubernetes Cluster.
+  This the steps for the cri-dockerd:
+	``` Shell
+	git clone https://github.com/Mirantis/cri-dockerd.git
+	```
+	To install on a Linux system that uses systemd, you will run as *ROOT*
+	``` Shell
+	# Run these commands as root
+	# Install GO###
+	wget https://storage.googleapis.com/golang/getgo/installer_linux
+	chmod +x ./installer_linux
+	./installer_linux
+	source ~/.bash_profile
 
+	cd cri-dockerd
+	mkdir bin
+	go build -o bin/cri-dockerd
+	mkdir -p /usr/local/bin
+	install -o root -g root -m 0755 bin/cri-dockerd /usr/local/bin/cri-dockerd
+	cp -a packaging/systemd/* /etc/systemd/system
+	sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
+	systemctl daemon-reload
+	systemctl enable cri-docker.service
+	systemctl enable --now cri-docker.socket`
+	```
 - **Install Kubernetes packages**
 
   - Update apt package index, install kubelet, kubeadm and kubectl
@@ -153,13 +177,164 @@
 	sudo apt-mark hold kubelet kubeadm kubectl
 	```
 
-- **Initializing your control-plane node**
-	
+- **Install Container Network Interface (CNI) Plugin**
+	If you run the **kubectl get node**, you get this output
+	```Shell
+	NAME     STATUS      ROLES           AGE   VERSION
+	kube03   NotReady    <none>          42h   v1.26.2
+	kubem1   NotReady    control-plane   43h   v1.26.2
+	```
+	After the installation,  you will get this output if you run the command again.
+	``` Shell
+	NAME     STATUS   ROLES           AGE   VERSION
+	kube03   Ready    <none>          42h   v1.26.2
+	kubem1   Ready    control-plane   43h   v1.26.2
+	```
+
+	I chooice to use **Calico** CNI. You can follow the same steps in [here](https://docs.tigera.io/calico/3.25/getting-started/kubernetes/hardway/install-cni-plugin) to install CNI plugin. 
+	- Provision Kubernetes user account for the plugin
+		On the Kubernetes master node, create key for the CNI plugin
+		``` Shell
+		openssl req -newkey rsa:4096 \
+			-keyout cni.key \
+			-nodes \
+			-out cni.csr \
+			-subj "/CN=calico-cni"
+		```
+		then sign the certificate using the main Kubernetes CA.
+		``` Shell
+		sudo openssl x509 -req -in cni.csr \
+					-CA /etc/kubernetes/pki/ca.crt \
+					-CAkey /etc/kubernetes/pki/ca.key \
+					-CAcreateserial \
+					-out cni.crt \
+					-days 365
+		sudo chown $(id -u):$(id -g) cni.crt
+		```
+		This will create a **cri.kubeconfig** on the working directory. Copy it for every node in the cluster. 
+		``` Shell
+		APISERVER=$(kubectl config view -o jsonpath='{.clusters[0].cluster.server}')
+		kubectl config set-cluster kubernetes \
+			--certificate-authority=/etc/kubernetes/pki/ca.crt \
+			--embed-certs=true \
+			--server=$APISERVER \
+			--kubeconfig=cni.kubeconfig
+
+		kubectl config set-credentials calico-cni \
+			--client-certificate=cni.crt \
+			--client-key=cni.key \
+			--embed-certs=true \
+			--kubeconfig=cni.kubeconfig
+
+		kubectl config set-context default \
+			--cluster=kubernetes \
+			--user=calico-cni \
+			--kubeconfig=cni.kubeconfig
+
+		kubectl config use-context default --kubeconfig=cni.kubeconfig
+		```
+	- Provision RBAC
+		Apply the below command:
+		``` Shell
+		kubectl apply -f - <<EOF
+		kind: ClusterRole
+		apiVersion: rbac.authorization.k8s.io/v1
+		metadata:
+		name: calico-cni
+		rules:
+		# The CNI plugin needs to get pods, nodes, and namespaces.
+		- apiGroups: [""]
+			resources:
+			- pods
+			- nodes
+			- namespaces
+			verbs:
+			- get
+		# The CNI plugin patches pods/status.
+		- apiGroups: [""]
+			resources:
+			- pods/status
+			verbs:
+			- patch
+		# These permissions are required for Calico CNI to perform IPAM allocations.
+		- apiGroups: ["crd.projectcalico.org"]
+			resources:
+			- blockaffinities
+			- ipamblocks
+			- ipamhandles
+			verbs:
+			- get
+			- list
+			- create
+			- update
+			- delete
+		- apiGroups: ["crd.projectcalico.org"]
+			resources:
+			- ipamconfigs
+			- clusterinformations
+			- ippools
+			verbs:
+			- get
+			- list
+		EOF
+		```
+		and this
+		``` Shell
+		kubectl create clusterrolebinding calico-cni --clusterrole=calico-cni --user=calico-cni
+		```
+	- Install the plugin on every node in the cluster
+		Insstall the CNI plugin binaries as ROOT.
+		``` Shell
+		curl -L -o /opt/cni/bin/calico https://github.com/projectcalico/cni-plugin/releases/download/v3.14.0/calico-amd64
+		chmod 755 /opt/cni/bin/calico
+		curl -L -o /opt/cni/bin/calico-ipam https://github.com/projectcalico/cni-plugin/releases/download/v3.14.0/calico-ipam-amd64
+		chmod 755 /opt/cni/bin/calico-ipam
+		```
+		Create the config directory and copy the cni.kubeconfig from the previous section
+		``` Shell
+		mkdir -p /etc/cni/net.d/
+
+		cp cni.kubeconfig /etc/cni/net.d/calico-kubeconfig
+		chmod 600 /etc/cni/net.d/calico-kubeconfig
+		```
+		Finally write the CNI configuration
+		``` Shell
+		cat > /etc/cni/net.d/10-calico.conflist <<EOF
+		{
+		"name": "k8s-pod-network",
+		"cniVersion": "0.3.1",
+		"plugins": [
+				{
+				"type": "calico",
+				"log_level": "info",
+				"datastore_type": "kubernetes",
+				"mtu": 1500,
+				"ipam": {
+					"type": "calico-ipam"
+				},
+				"policy": {
+					"type": "k8s"
+				},
+				"kubernetes": {
+					"kubeconfig": "/etc/cni/net.d/calico-kubeconfig"
+				}
+				},
+				{
+				"type": "portmap",
+				"snat": true,
+				"capabilities": {"portMappings": true}
+				}
+			]
+		}
+		EOF
+		```
+**3. Initializing Kubernetes** 
+- **Initilize the cluster in the Master node**
+	Run the command as below
 	``` Shell
 	sudo kubeadm init
 	```
 	As I run the command first time, I got the below message:
-
 	``` Shell
 	Found multiple CRI endpoints on the host. Please define which one do you wish to use by setting the 'criSocket' field in the kubeadm configuration file: unix:///var/run/containerd/containerd.sock, unix:///var/run/cri-dockerd.sock
 	To see the stack trace of this error execute with --v=5 or higher
@@ -192,7 +367,7 @@
 	
 	You should now deploy a pod network to the cluster.
 	Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
-	  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+	  -
 	
 	Then you can join any number of worker nodes by running the following on each as root:
 	
@@ -207,23 +382,8 @@
 	```
 	You should store the last line of the output of *kubeadm init* for other nodes to join the cluster
 
-- **Install Container Network Interface (CNI) Plugin**
-	If you run the kubectl get node, you get this output
-	```Shell
-	NAME     STATUS      ROLES           AGE   VERSION
-	kube03   NotReady    <none>          42h   v1.26.2
-	kubem1   NotReady    control-plane   43h   v1.26.2
-	```
-	I chooice to use **Calico** CNI. You can follow the same steps in [here](https://docs.tigera.io/calico/3.25/getting-started/kubernetes/hardway/install-cni-plugin) to install CNI plugin. 
-	If you run the command again, you will get this output
-	``` Shell
-	$ kubectl get node
-	NAME     STATUS   ROLES           AGE   VERSION
-	kube03   Ready    <none>          42h   v1.26.2
-	kubem1   Ready    control-plane   43h   v1.26.2
-	```
 
-- **Join your working node to the cluster**
+- **Join the working node to the cluster**
 	You can just use the last line from the output of *kubeadm init* in the control-plane node
 	``` Shell
 	sudo kubeadm join 192.168.11.150:6443 --token 7oeub1.07jqmcx87vllnq6x \
