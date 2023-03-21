@@ -33,7 +33,7 @@ systemctl enable haproxy
 
 ## 4. Initializing Kubernetes
 
--**kubeadm init the first Master Node**
+- **kubeadm init the first Master Node**
 ```Shell
 sudo kubeadm init --control-plane-endpoint="192.168.11.156:6443" --upload-certs --apiserver-advertise-address=192.168.11.150 --cri-socket=unix:///var/run/cri-dockerd.sock
 ```
@@ -71,7 +71,7 @@ sudo kubeadm join 192.168.11.156:6443 --token yrmgbu.sccns93idid4oskq \
         --discovery-token-ca-cert-hash sha256:413095cc58ec83ebab13e62806ada8634e8bd8fee479aa485a3e0d06712c707f
 ```
 
--**Setup the second Master Node**
+- **Setup the second Master Node**
 The command used is from the output of **kubeadm init** on kubeM1. Just remember to add the *--cri-socket* options as cri-dockerd is used.
 ```Shell
 sudo kubeadm join 192.168.11.156:6443 --token yrmgbu.sccns93idid4oskq \
@@ -79,15 +79,16 @@ sudo kubeadm join 192.168.11.156:6443 --token yrmgbu.sccns93idid4oskq \
         --control-plane --certificate-key 3d687422431f04c1a4bab69ae1cd302c0664dcb0d20dc01be3896fae4e77bdf1  --cri-socket=unix:///var/run/cri-dockerd.sock
 ```
 
--**Setup other Worker Node**
+- **Setup other Worker Node**
 
 ```Shell
 sudo kubeadm join 192.168.11.156:6443 --token yrmgbu.sccns93idid4oskq \
         --discovery-token-ca-cert-hash sha256:413095cc58ec83ebab13e62806ada8634e8bd8fee479aa485a3e0d06712c707f  --cri-socket=unix:///var/run/cri-dockerd.sock
 ```
 
--**Expired Token for joining the Cluster**
-I have into a problem when try to add another worker node. I use the below command to check the token in a Master Node.
+- **Expired Token for joining the Cluster**  
+
+I ran into a problem when trying to add another worker node. I use the below command to verify the token in a Master Node.
 ```Shell
 kubeadm token list
 ```
