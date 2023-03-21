@@ -6,3 +6,4 @@
 
 - [Setup a PC with GPU to run Ubuntu](/GPUPC/howto.md)
 - [Setup a basic Kubernetes Cluster on VirtualBox VM](/SetupK8onVM/INDEX.md)
+- [Modified Kubernetes Cluster to support High Availability(HA)](HACluster/Info.d)

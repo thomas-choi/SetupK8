@@ -1,9 +1,9 @@
-# Setup VirtualBox VM image based on Ubuntu 20.04 LTS ready for Kuburnetes Node
+# Setup Kubernetes Cluster with VirtualBox VM on Ubuntu 20.04 LTS 
 
-## 1. Setup a baseline of Ubuntu VM using VirutalBox
+## 1. Setup a baseline of Ubuntu VM using VirtualBox
 
 - Download Ubuntu 20.04 LTS image file (.iso)
-- Create a VM with VirutalBox
+- Create a VM with VirtualBox
 	- In the Network setting, you have to select "Bridged Adapter" and Adapter Type to
 	to your host network adapter. 
 
@@ -91,10 +91,10 @@
 	- I use my Wifi router to control the IP for each VM with the defined MAC address
 	- Also, I edit the file /etc/hosts with the IP address and hostname pair on the VM baseline
 
-## 2. Installation of Kubernetes steps for each VM Node
+## 2. Installation of Kubernetes steps for each Node
 - **Setup Hostname and MAC Address**
 
-  The MAC address can be set before the VirtualBox VM started in the network settiong
+  The MAC address can be set before the VirtualBox VM started in the network setting
 
 	<p align="center">
 	<img src="NetworkSetting.png"</a>
@@ -162,7 +162,7 @@
 	sed -i -e 's,/usr/bin/cri-dockerd,/usr/local/bin/cri-dockerd,' /etc/systemd/system/cri-docker.service
 	systemctl daemon-reload
 	systemctl enable cri-docker.service
-	systemctl enable --now cri-docker.socket`
+	systemctl enable --now cri-docker.socket
 	```
 - **Install Kubernetes packages**
 
@@ -328,7 +328,7 @@
 		}
 		EOF
 		```
-**3. Initializing Kubernetes** 
+##3. Initializing Kubernetes** 
 - **Initilize the cluster in the Master node**
 	Run the command as below
 	``` Shell
