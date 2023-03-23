@@ -63,7 +63,7 @@
 	[read the Kubernetes Documentation](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)
 	
 	``` Shell
-	sudo apt-get updatels 
+	sudo apt-get update 
 	sudo apt-get install -y apt-transport-https ca-certificates curl
 	```
 	Download the Google Cloud public signing key:
